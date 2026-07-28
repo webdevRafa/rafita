@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import CountUp from 'react-countup'
+import { useCallback, useEffect, useId, useMemo, useState } from 'react'
+import { useCountUp } from 'react-countup'
 import './App.css'
 
 const rotatingWords = ['SPEAKING.', 'SINGING.', 'WARNING.', 'BECOMING.']
@@ -92,6 +92,38 @@ type AnimatedMetricProps = {
   suffix?: string
 }
 
+type CountingMetricProps = Pick<
+  AnimatedMetricProps,
+  'decimals' | 'duration' | 'end' | 'scrollSpyDelay'
+> & {
+  formatValue: (value: number) => string
+}
+
+function CountingMetric({
+  decimals,
+  duration,
+  end,
+  formatValue,
+  scrollSpyDelay,
+}: CountingMetricProps) {
+  const countUpId = useId()
+
+  useCountUp({
+    ref: countUpId,
+    decimals,
+    end,
+    duration,
+    enableScrollSpy: true,
+    formattingFn: formatValue,
+    scrollSpyDelay,
+    scrollSpyOnce: true,
+    start: 0,
+    useEasing: true,
+  })
+
+  return <span id={countUpId} />
+}
+
 function AnimatedMetric({
   end,
   label,
@@ -122,15 +154,12 @@ function AnimatedMetric({
         {reducedMotion ? (
           formatValue(end)
         ) : (
-          <CountUp
+          <CountingMetric
+            decimals={decimals}
             end={end}
             duration={duration}
-            enableScrollSpy
-            formattingFn={formatValue}
+            formatValue={formatValue}
             scrollSpyDelay={scrollSpyDelay}
-            scrollSpyOnce
-            start={0}
-            useEasing
           />
         )}
       </span>
