@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import CountUp from 'react-countup'
 import './App.css'
 
 const rotatingWords = ['SPEAKING.', 'SINGING.', 'WARNING.', 'BECOMING.']
@@ -80,42 +81,104 @@ const questions = [
   },
 ]
 
+type AnimatedMetricProps = {
+  end: number
+  label: string
+  reducedMotion: boolean
+  decimals?: number
+  duration?: number
+  minimumIntegerDigits?: number
+  scrollSpyDelay?: number
+  suffix?: string
+}
+
+function AnimatedMetric({
+  end,
+  label,
+  reducedMotion,
+  decimals = 0,
+  duration = 2,
+  minimumIntegerDigits = 1,
+  scrollSpyDelay = 0,
+  suffix = '',
+}: AnimatedMetricProps) {
+  const formatter = useMemo(
+    () =>
+      new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+        minimumIntegerDigits,
+      }),
+    [decimals, minimumIntegerDigits],
+  )
+  const formatValue = useCallback(
+    (value: number) => `${formatter.format(value)}${suffix}`,
+    [formatter, suffix],
+  )
+
+  return (
+    <span className="countup-number">
+      <span aria-hidden="true">
+        {reducedMotion ? (
+          formatValue(end)
+        ) : (
+          <CountUp
+            end={end}
+            duration={duration}
+            enableScrollSpy
+            formattingFn={formatValue}
+            scrollSpyDelay={scrollSpyDelay}
+            scrollSpyOnce
+            start={0}
+            useEasing
+          />
+        )}
+      </span>
+      <span className="sr-only">{label}</span>
+    </span>
+  )
+}
+
+function usePrefersReducedMotion() {
+  const [reducedMotion, setReducedMotion] = useState(
+    () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  )
+
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const updatePreference = () => setReducedMotion(media.matches)
+
+    updatePreference()
+    media.addEventListener('change', updatePreference)
+    return () => media.removeEventListener('change', updatePreference)
+  }, [])
+
+  return reducedMotion
+}
+
 function App() {
+  const reducedMotion = usePrefersReducedMotion()
   const [wordIndex, setWordIndex] = useState(0)
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeRecord, setActiveRecord] = useState(0)
   const [openQuestion, setOpenQuestion] = useState<number | null>(0)
 
   useEffect(() => {
-    const media = window.matchMedia('(prefers-reduced-motion: reduce)')
-    let timer: ReturnType<typeof setInterval> | undefined
+    if (reducedMotion) return
 
-    const syncRotation = () => {
-      if (timer) window.clearInterval(timer)
-      if (!media.matches) {
-        timer = window.setInterval(
-          () => setWordIndex((current) => (current + 1) % rotatingWords.length),
-          3800,
-        )
-      }
-    }
-
-    syncRotation()
-    media.addEventListener('change', syncRotation)
-
-    return () => {
-      if (timer) window.clearInterval(timer)
-      media.removeEventListener('change', syncRotation)
-    }
-  }, [])
+    const timer = window.setInterval(
+      () => setWordIndex((current) => (current + 1) % rotatingWords.length),
+      3800,
+    )
+    return () => window.clearInterval(timer)
+  }, [reducedMotion])
 
   useEffect(() => {
-    const media = window.matchMedia('(prefers-reduced-motion: reduce)')
     const elements = Array.from(
       document.querySelectorAll<HTMLElement>('[data-reveal]'),
     )
 
-    if (media.matches) {
+    if (reducedMotion) {
       elements.forEach((element) => element.classList.add('is-visible'))
       return
     }
@@ -134,7 +197,7 @@ function App() {
 
     elements.forEach((element) => observer.observe(element))
     return () => observer.disconnect()
-  }, [])
+  }, [reducedMotion])
 
   useEffect(() => {
     let frame = 0
@@ -245,15 +308,36 @@ function App() {
               <div className="hero-coordinates" aria-label="Archive statistics">
                 <span>
                   <small>HABITATS</small>
-                  47
+                  <strong>
+                    <AnimatedMetric
+                      end={47}
+                      label="47 habitats"
+                      reducedMotion={reducedMotion}
+                    />
+                  </strong>
                 </span>
                 <span>
                   <small>HOURS HELD</small>
-                  12,840
+                  <strong>
+                    <AnimatedMetric
+                      end={12840}
+                      label="12,840 hours held"
+                      reducedMotion={reducedMotion}
+                      scrollSpyDelay={120}
+                    />
+                  </strong>
                 </span>
                 <span>
                   <small>FIELD YEARS</small>
-                  09
+                  <strong>
+                    <AnimatedMetric
+                      end={9}
+                      label="9 field years"
+                      minimumIntegerDigits={2}
+                      reducedMotion={reducedMotion}
+                      scrollSpyDelay={240}
+                    />
+                  </strong>
                 </span>
               </div>
             </div>
@@ -342,15 +426,40 @@ function App() {
               </div>
               <div className="purpose-metrics">
                 <span>
-                  <strong>4.8 TB</strong>
+                  <strong>
+                    <AnimatedMetric
+                      decimals={1}
+                      duration={2.2}
+                      end={4.8}
+                      label="4.8 terabytes of uncompressed field audio"
+                      reducedMotion={reducedMotion}
+                      suffix=" TB"
+                    />
+                  </strong>
                   <small>UNCOMPRESSED FIELD AUDIO</small>
                 </span>
                 <span>
-                  <strong>23</strong>
+                  <strong>
+                    <AnimatedMetric
+                      duration={2.2}
+                      end={23}
+                      label="23 long-term listening sites"
+                      reducedMotion={reducedMotion}
+                      scrollSpyDelay={120}
+                    />
+                  </strong>
                   <small>LONG-TERM LISTENING SITES</small>
                 </span>
                 <span>
-                  <strong>11</strong>
+                  <strong>
+                    <AnimatedMetric
+                      duration={2.2}
+                      end={11}
+                      label="11 local recording partners"
+                      reducedMotion={reducedMotion}
+                      scrollSpyDelay={240}
+                    />
+                  </strong>
                   <small>LOCAL RECORDING PARTNERS</small>
                 </span>
               </div>
